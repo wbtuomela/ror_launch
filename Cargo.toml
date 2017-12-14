@@ -1,0 +1,15 @@
+[package]
+name = "ror_launch"
+version = "0.1.0"
+authors = ["Sammy James <sammy.james@protonmail.com>"]
+
+[dependencies]
+log = "*"
+simple_logger = "*"
+curl = "*"
+serde = "*"
+serde_derive = "*"
+serde-xml-rs = "*"
+bytebuffer = "*"
+sha2 = "*"
+base64 = "*"
