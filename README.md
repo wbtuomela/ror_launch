@@ -13,9 +13,10 @@ _A simple command line launcher for Return of Reckoning_
     * Unix: `./ror_launch username password`
 ### Building:
 1. clone or download this repo
-2. with a terminal / command prompt open the directory
-3. cargo build --release 
-4. cp target/release/ror_launch into your WAR directory
+2. download & install rust from [rustup](https://www.rustup.rs/)
+3. with a terminal / command prompt open the directory
+4. `cargo build --release`
+5. copy the resulting binary `(target/release/ror_launcher)` into your WAR directory
 ### Caveats
 * This won't patch your data.myp so you'll have to grab an up to date one
 * This won't hide your password from your terminal
