@@ -3,6 +3,7 @@ extern crate bytebuffer;
 extern crate curl;
 #[macro_use]
 extern crate log;
+extern crate md5;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -13,141 +14,96 @@ extern crate simple_logger;
 mod client;
 mod enums;
 mod launcher;
+mod patcher;
 
 use client::Client;
 use launcher::{get_launcher_url, Launcher};
-use bytebuffer::ByteBuffer;
-use sha2::{Digest, Sha256};
+use patcher::Patcher;
 use std::env;
 use std::process::Command;
 
 #[cfg(debug_assertions)]
 use log::LogLevel;
 
-fn hash_str_orig<'a>(src: &'a str) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.input(src.as_bytes());
-
-    let hashed_pass = hasher.result();
-    hashed_pass.into_iter().collect()
-}
-
-fn hash_str_fmt<'a>(src: &'a str) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.input(src.as_bytes());
-
-    let hashed_pass = hasher.result();
-    let mut result_str = String::new();
-
-    for byte in hashed_pass.iter() {
-        result_str.push_str(&format!("{:x}", byte));
-    }
-
-    result_str.into_bytes()
-}
-
+/// Entry point
 fn main() {
     #[cfg(debug_assertions)]
-    simple_logger::init().unwrap();
+    simple_logger::init_with_level(LogLevel::Info).unwrap();
 
     println!("👾 command line Return of Reckoning launcher (by Sammy)");
 
     info!(
-        "[1/6] Fetching launcher information from {}",
+        "[1/7] Fetching launcher information from {}",
         get_launcher_url()
     );
 
     let launcher_info = Launcher::new();
 
     info!(
-        "[2/6] auth server is at {}:{}",
+        "[2/7] auth server is at {}:{}",
         &launcher_info.get_ip(),
         &launcher_info.get_port()
     );
 
-    info!("[3/6] attempting to open socket to auth server... ");
-    let mut client = Client::new(&launcher_info.get_ip(), &launcher_info.get_port());
-    info!("[4/6] connection established.");
+    info!("[3/7] attempting to open socket to auth server... ");
+    let mut client = Client::new(launcher_info.get_ip(), launcher_info.get_port());
+    info!("[4/7] connection established.");
+
+    client.check();
 
     auth(&mut client);
 }
 
+/// attempt to send auth information to the auth server
+/// packet format is:
+/// 0x0, 0x0, 0x0, 0x0, 0x3 -- this seems to specify auth, we expect 0x4 in response
+/// [[username bytes]]
+/// [[(hashed)username:password]]
+/// [[packet size]]
 fn auth(client: &mut Client) {
-    info!("[5/6] sending auth info...");
+    info!("[5/7] sending auth info...");
     let args: Vec<String> = env::args().collect();
     assert!(args.len() >= 3);
 
     let cmd_user = &args[1];
     let cmd_pass = &args[2];
 
-    client.set_user(cmd_user);
-
-    let mut buffer = ByteBuffer::new();
-    buffer.write_bytes(&[0x00, 0x00, 0x00, 0x00, 0x03]);
-    buffer.write_string(cmd_user);
-
-    {
-        let pass_to_hash = format!("{}:{}", cmd_user, cmd_pass); // username:password
-        let hashed_pass = hash_str_orig(&pass_to_hash);
-
-        buffer.write_u32(hashed_pass.len() as u32);
-        buffer.write_bytes(&hashed_pass);
-    }
-
-    {
-        //let packet_size = buffer.len() as u32;
-        //buffer.write_u32(packet_size - 1); // exclude opcode
-    }
-
-    client.send(&buffer.to_bytes()).unwrap();
-
-    let mut temp = [0; 256];
-    let read = client.read(&mut temp).unwrap();
-
-    let mut response_buf = ByteBuffer::from_bytes(&temp[..read]);
-    let _size = response_buf.read_u32();
-    let opcode = response_buf.read_u8();
-
-    match opcode {
-        4 => {
-            let resp = response_buf.read_u8();
-            match resp {
-                1u8 => panic!("invalid username / password"),
-                2u8 => panic!("account suspended"),
-                3u8 => panic!("account inactive"),
-                _ => {}
-            }
-
-            let auth = response_buf.read_string();
-            client.set_auth(&auth);
-
-            println!("Welcome to WAR!! 😈");
-            start_warhammer(&client);
-        }
-        _ => {}
-    }
+    client.auth(cmd_user, cmd_pass, |client| {
+        patch_warhammer(client);
+    });
 }
 
-fn start_warhammer(client: &Client) {
-    info!("[6/6] Starting Warhammer Online - Age of Reckoning");
+fn patch_warhammer(client: &Client) {
+    info!("[6/7] Determining if WAR.exe needs a patch.");
+    let mut patcher = Patcher::new();
+    if patcher.needs_patch() {
+        debug!("... client requires patching");
+        patcher.patch();
+    } else {
+        debug!("... no patch needed");
+    }
 
-    #[cfg(target_os = "macos")]
-    let war_proc = Command::new("wine")
+    start_warhammer(client);
+}
+
+/// finally attempt to start the warhammer executable with the provided
+/// account username encoded via base64 along with the auth result that
+/// we should recieve from the auth server encoded via base64
+fn start_warhammer(client: &Client) {
+    info!("[7/7] Starting Warhammer Online - Age of Reckoning");
+    println!("Welcome to Return of Reckoning! 😈");
+
+    #[cfg(target_family = "unix")]
+    let _war_proc = Command::new("wine")
         .arg("WAR.exe")
-        .arg(format!(
-            "--accountname={}",
-            base64::encode(client.get_user())
-        ))
+        .arg(format!("--acctname={}", base64::encode(client.get_user())))
         .arg(format!("--sesstoken={}", base64::encode(client.get_auth())))
         .output()
         .expect("failed to start WAR.exe");
 
     #[cfg(target_os = "windows")]
-    let war_proc = Command::new("WAR.exe")
-        .arg(format!(
-            "--accountname={}",
-            base64::encode(client.get_user())
-        ))
+    let _war_proc = Command::new("WAR.exe")
+        .arg(format!("--acctname={}", base64::encode(client.get_user())))
         .arg(format!("--sesstoken={}", base64::encode(client.get_auth())))
         .output()
         .expect("failed to start WAR.exe");
