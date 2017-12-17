@@ -19,11 +19,12 @@ impl Client {
     pub fn new(ip: &str, port: &str) -> Self {
         let formatted_addr = format!("{}:{}", ip, port);
         let addr = formatted_addr.parse::<SocketAddr>().unwrap();
+        let stream = TcpStream::connect(&addr).unwrap();
 
         Self {
             user: String::default(),
             auth: String::default(),
-            stream: TcpStream::connect(&addr).unwrap(),
+            stream: stream,
         }
     }
 

@@ -1,7 +1,7 @@
-use std::fs::File;
-use std::path::PathBuf;
 use std::env;
+use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 use md5::{Digest, Md5};
 
 const BUFFER_SIZE: usize = 1024;

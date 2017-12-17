@@ -20,7 +20,7 @@ use client::Client;
 use launcher::{get_launcher_url, Launcher};
 use patcher::Patcher;
 use std::env;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[cfg(debug_assertions)]
 use log::LogLevel;
@@ -83,28 +83,44 @@ fn patch_warhammer(client: &Client) {
         debug!("... no patch needed");
     }
 
-    start_warhammer(client);
+    start_warhammer(client.get_user(), client.get_auth());
 }
 
 /// finally attempt to start the warhammer executable with the provided
 /// account username encoded via base64 along with the auth result that
 /// we should recieve from the auth server encoded via base64
-fn start_warhammer(client: &Client) {
+fn start_warhammer(user: &String, auth: &String) {
     info!("[7/7] Starting Warhammer Online - Age of Reckoning");
     println!("Welcome to Return of Reckoning! 😈");
 
     #[cfg(target_family = "unix")]
-    let _war_proc = Command::new("wine")
-        .arg("WAR.exe")
-        .arg(format!("--acctname={}", base64::encode(client.get_user())))
-        .arg(format!("--sesstoken={}", base64::encode(client.get_auth())))
-        .output()
-        .expect("failed to start WAR.exe");
+    {
+        let mut process = match Command::new("wine")
+            .arg("WAR.exe")
+            .arg(format!("--acctname={}", base64::encode(user)))
+            .arg(format!("--sesstoken={}", base64::encode(auth)))
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            Err(why) => panic!("failed to run wine: {}", why),
+            Ok(process) => process,
+        };
+
+        process.wait().unwrap();
+    }
 
     #[cfg(target_os = "windows")]
-    let _war_proc = Command::new("WAR.exe")
-        .arg(format!("--acctname={}", base64::encode(client.get_user())))
-        .arg(format!("--sesstoken={}", base64::encode(client.get_auth())))
-        .output()
-        .expect("failed to start WAR.exe");
+    {
+        let mut process = match Command::new("WAR.exe")
+            .arg(format!("--acctname={}", base64::encode(user)))
+            .arg(format!("--sesstoken={}", base64::encode(auth)))
+            .stdout(Stdio::piped())
+            .spawn()
+        {
+            Err(why) => panic!("failed to run WAR.exe: {}", why),
+            Ok(process) => process,
+        };
+
+        process.wait().unwrap();
+    }
 }
