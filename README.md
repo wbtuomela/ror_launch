@@ -1,4 +1,4 @@
-# Return of Reckoning Launcher
+# Return of Reckoning Launcher [![Build Status](https://travis-ci.org/SammyJames/ror_launch.svg?branch=master)](https://travis-ci.org/SammyJames/ror_launch)
 _A simple command line launcher for Return of Reckoning_
 
 ### Features:
