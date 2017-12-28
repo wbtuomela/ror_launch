@@ -31,6 +31,7 @@ impl Launcher {
         let mut dest = Vec::new();
         {
             let mut easy = Easy::new();
+            easy.ssl_verify_peer(false).unwrap();
             easy.url(LAUNCHER_URL).unwrap();
             easy.follow_location(true).unwrap();
 
