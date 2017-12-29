@@ -11,6 +11,7 @@ use std::env;
 pub struct Client {
     user: String,
     auth: String,
+    prefix: String,
     stream: TcpStream,
 }
 
@@ -24,6 +25,7 @@ impl Client {
         Self {
             user: String::default(),
             auth: String::default(),
+            prefix: String::default(),
             stream: stream,
         }
     }
@@ -34,6 +36,10 @@ impl Client {
 
     pub fn get_auth(&self) -> &String {
         &self.auth
+    }
+
+    pub fn get_prefix(&self) -> &String {
+        &self.prefix
     }
 
     pub fn get_user(&self) -> &String {
@@ -108,7 +114,7 @@ impl Client {
         }
     }
 
-    pub fn auth<F: FnOnce(&Self)>(&mut self, username: &str, passwrd: &str, next: F) {
+    pub fn auth<F: FnOnce(&Self)>(&mut self, username: &str, passwrd: &str, prefix: &str, next: F) {
         let mut buffer = ByteBuffer::new();
         buffer.write_bytes(&[0x00, 0x00, 0x00, 0x00, EOpCode::ClStart as u8]);
         buffer.write_string(username);
@@ -148,6 +154,7 @@ impl Client {
             let auth = response_buf.read_string();
             self.auth = auth;
             self.user = String::from(username);
+            self.prefix = String::from(prefix);
             next(self);
         }
     }
