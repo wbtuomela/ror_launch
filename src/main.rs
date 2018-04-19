@@ -26,12 +26,12 @@ use std::process::{Command, Stdio};
 use tempfile::{NamedTempFile, NamedTempFileOptions};
 
 #[cfg(debug_assertions)]
-use log::LogLevel;
+use log::Level;
 
 /// Entry point
 fn main() {
     #[cfg(debug_assertions)]
-    simple_logger::init_with_level(LogLevel::Info).unwrap();
+    simple_logger::init_with_level(Level::Info).unwrap();
 
     println!("👾 command line Return of Reckoning launcher (by Sammy)");
 

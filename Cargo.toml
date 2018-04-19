@@ -1,6 +1,6 @@
 [package]
 name = "ror_launch"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Sammy James <sammy.james@protonmail.com>"]
 
 [dependencies]
@@ -14,4 +14,4 @@ bytebuffer = "*"
 sha2 = "*"
 md-5 = "*"
 base64 = "*"
-tempfile = "*"
+tempfile = "2.2.0"
